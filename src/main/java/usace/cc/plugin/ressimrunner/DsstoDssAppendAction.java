@@ -33,7 +33,7 @@ public class DsstoDssAppendAction {
                 System.exit(-1);
             }
             DataSource destinationDs = opDestinationDs.get();
-            //create dss file
+            //open existing dss file
             HecDss destination = HecDss.open(destinationDs.getPaths().get("default"));
             //read time series from source
             Optional<Map<String,String>> opSourceDataPaths = sourceDs.getDataPaths();

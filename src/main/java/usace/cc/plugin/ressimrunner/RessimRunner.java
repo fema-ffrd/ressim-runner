@@ -73,6 +73,7 @@ public class RessimRunner  {
                     File p = new File(path.getValue());
                     //String pName = p.getName();
                     File df = new File(f.getAbsolutePath() + "/" + p.getName());
+                    System.out.println(df.getAbsolutePath());
                     mp.copyFileToLocal(i.getName(), path.getKey(), df.getAbsolutePath());
                 }
                 

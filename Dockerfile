@@ -3,6 +3,7 @@ ARG RESSIM_VERSION=3.5.1.18-linuxbeta-linux-x86_64
 ARG RESSIM_HOME=HEC-ResSim-${RESSIM_VERSION}
 ENV GRADLE_HOME=/opt/gradle/latest
 ENV PATH=${GRADLE_HOME}/bin:$PATH
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
 #need to get the jdk.
 RUN apt update &&\
     apt upgrade -y &&\
