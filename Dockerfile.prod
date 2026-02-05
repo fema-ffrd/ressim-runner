@@ -1,0 +1,55 @@
+FROM ubuntu:24.04 AS builder
+
+ENV GRADLE_HOME=/opt/gradle/latest
+ENV PATH=${GRADLE_HOME}/bin:$PATH
+ARG RESSIM_VERSION=3.5.1.18-linuxbeta-linux-x86_64
+ARG RESSIM_HOME=HEC-ResSim-${RESSIM_VERSION}
+ARG SDK_VERSION=1.1.1
+ENV JAVA_HOME=/usr/lib/jvm/java-17-openjdk-amd64
+
+RUN apt update &&\
+    apt -y install wget &&\
+    apt -y install libgfortran5 openjdk-17-jre openjdk-17-jdk &&\
+    wget https://www.hec.usace.army.mil/nexus/repository/maven-public/mil/army/usace/hec/ressim/hec-ressim/${RESSIM_VERSION}/hec-ressim-${RESSIM_VERSION}.tar.gz -P / &&\
+    mkdir /${RESSIM_HOME} &&\
+    tar -xvzf /hec-ressim-${RESSIM_VERSION}.tar.gz -C /${RESSIM_HOME} --strip-components=1 &&\
+    apt -y install git &&\
+    apt -y install unzip &&\
+    wget https://services.gradle.org/distributions/gradle-7.3.1-bin.zip -P /tmp &&\
+    unzip -d /opt/gradle /tmp/gradle-7.3.1-bin.zip &&\
+    ln -s /opt/gradle/gradle-7.3.1 /opt/gradle/latest &&\
+    mkdir -p /app
+
+COPY . /app/ressim-runner
+WORKDIR /app/ressim-runner
+RUN mkdir -p /cloud-compute/jar && \
+    wget https://github.com/fema-ffrd/cc-java-sdk/releases/download/v${SDK_VERSION}/cc-java-sdk-${SDK_VERSION}-all.jar \
+    -O /cloud-compute/jar/cc-java-sdk-${SDK_VERSION}-all.jar
+RUN gradle build --no-daemon -x test
+
+FROM ubuntu:24.04 AS prod
+
+ARG RESSIM_VERSION=3.5.1.18-linuxbeta-linux-x86_64
+ARG RESSIM_HOME=HEC-ResSim-${RESSIM_VERSION}
+ARG SDK_VERSION=1.1.1
+
+ENV RESSIM_HOME=/${RESSIM_HOME}
+ENV RESSIM_RUNNER_HOME=/ressim-runner
+
+RUN apt update
+RUN apt -y install libgfortran5
+RUN mkdir -p  /ressim-runner
+RUN apt -y install openjdk-17-jre
+
+COPY --from=builder /app/ressim-runner/build/libs /ressim-runner
+COPY --from=builder /cloud-compute/jar/cc-java-sdk-${SDK_VERSION}-all.jar /cloud-compute/jar/cc-java-sdk-${SDK_VERSION}-all.jar
+RUN mkdir -p  /${RESSIM_HOME}
+COPY --from=builder /${RESSIM_HOME} /${RESSIM_HOME}
+COPY rss/SimpleServer.py /${RESSIM_HOME}/SimpleServer.py
+COPY rss/ressim-runner.sh /app/ressim-runner.sh
+
+ENV HEC_MAINCLASS=hec.server.RssRMIServer
+ENV CLASSPATH=/${RESSIM_HOME}/lib/*:/${RESSIM_HOME}/lib/hec/*:/${RESSIM_HOME}/java/lib/*:/${RESSIM_HOME}/jar/*:/${RESSIM_HOME}/jar/ext/*:/${RESSIM_HOME}/jar/sys/*:/ressim-runner/*
+
+WORKDIR /ressim-runner
+ENTRYPOINT ["/app/ressim-runner.sh"]
